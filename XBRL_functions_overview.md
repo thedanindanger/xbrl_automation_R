@@ -112,7 +112,7 @@ balanceSheetCompare <- function(c1 = "aapl",c2 = "goog",c3 = "fb", year =2016, r
 
 This function allows me to compare three ticker symbols for any year I want, pretty cool and it was lifted right from the github of the author so it's basically cut and paste!
 
-It also return the balance sheet value if I want to get more data
+It also returns the balance sheet value if I want to get more data
 
 ``` r
 balanceSheetCompare()
@@ -198,12 +198,11 @@ balanceSheetCompare()
 </tbody>
 </table>
 
-function (...) cat(pandoc.table.return(...)) &lt;environment: namespace:pander&gt;
 
 Getting XBRL Ourselves
 ----------------------
 
-Next we want to look at parsing entire xbrl files we get from edgar: <https://www.sec.gov/edgar/searchedgar/companysearch.html>
+Next we want to look at parsing entire xbrl files we get from EDGAR: <https://www.sec.gov/edgar/searchedgar/companysearch.html>
 
 Again, this is taken right from the github for the library:
 
@@ -240,7 +239,7 @@ getIncomeStatement <- function(parsedXBRL){
 Financial Analysis
 ------------------
 
-Here's where it get's incredible, using built in calculation functions in the finstr library, we can take multiple years of data and completely automate the analysis!
+Here's where it gets incredible, using built in calculation functions in the finstr library, we can take multiple years of data and completely automate the analysis!
 
 ``` r
 applXBRL2016 <- "https://www.sec.gov/Archives/edgar/data/320193/000162828016020309/aapl-20160924.xml"
@@ -253,8 +252,9 @@ appl2016Balance <- getBalanceSheet(appl201610K)
 appl2015Balance <- getBalanceSheet(appl201510k)
 ```
 
-Sweet, we have our statements, now remember how much it work it was to close the books and verify there weren't any errors?
+Sweet, we have our statements, now remember in introductory accounting classes how much it work it was to close the books and verify there weren't any errors?
 
+...checking for errors:
 ``` r
 check <- check_statement(appl2016Balance)
 check
@@ -262,10 +262,8 @@ check
 
 Number of errors: 0 Number of elements in errors: 0
 
+... looking at specific calcuations:
 ``` r
-#No Errors!
-
-#Further Exploration
 
 check$elementId[3]
 ```
@@ -282,6 +280,8 @@ check$expression[3]
 check$original[3]
 ```
 
+...and verification those calcuations are correct:
+
 \[1\] 8.9378e+10
 
 ``` r
@@ -289,6 +289,8 @@ check$calculated[3]
 ```
 
 \[1\] 8.9378e+10
+
+hmmm...
 
 Well, there goes a few jobs...
 
