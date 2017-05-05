@@ -1,0 +1,340 @@
+---
+title: "XBRL Automation"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r suppress warnings, echo = FALSE}
+#Suppressing Warning so they do not print when knitting
+#Do not not run when testing
+oldw <- getOption("warn")
+
+#UNCOMMENT ONLY WHEN KNITING
+options(warn = -1)
+```
+
+## XBRL Automation
+
+This project is for the automation of XBRL financial analysis, it acts as an example of how easy automation can be just by learning a few key concepts.
+
+We will use the XBRL API to grab financial statemetns, then use publically avaialble libraries to QA and Analysis the Statements
+
+## Installation
+
+If you do not have dev tools already installed, do so, then install the remaining git packages
+
+```{r installing libraries, results='hide',message=FALSE}
+#install.packages("devtools")
+
+library(devtools)
+
+#devtools::install_github("bergant/xbrlus") #https://github.com/bergant/xbrlus
+#devtools::install_github("bergant/finstr") #https://github.com/bergant/finstr
+
+library(XBRL)
+library(xbrlus)
+library(finstr)
+library(dplyr)
+library(tidyr)
+library(pander)
+
+
+```
+
+## Getting Data
+
+Initally we are going to use hard coded values, then create a microservice to get them online.
+
+But first, will will need an API key from XBRL 
+
+You can get it from here: https://xbrl.us/home/use/data-analysis-toolkit/ 
+
+Then either create a system environment variable XBRLUS_API_KEY=APIValueHere or add a new R system variable to .Renviron in your R home (find by using normalizePath("~") in R Console)
+
+Or use the code below each time you run the script, but putting an API key in code is never a good practice
+
+Additional info here: https://xbrlus.github.io/data_analysis_toolkit/ on the api
+
+```{r getting data}
+
+##Uncomment below if seting API key in code
+#api_key = "xxxx"
+#Sys.setenv(XBRLUS_API_KEY=api_key)
+##
+
+#balanceSheetCompare <- function(c1 = "aapl",c2 = "goog",c3 = "fb", year =2016, return_data = FALSE){
+
+balanceSheetCompare <- function(c = "aapl, goog, fb", year =2016, return_data = TRUE){
+
+
+  #heavily lifted from example on https://github.com/bergant/xbrlus
+  
+  c_vect <- trim.spaces(unlist(strsplit(c,",", fixed = TRUE)))
+
+  cik <- xbrlCIKLookup(c_vect)
+  
+  elements <- xbrlBaseElement(c(
+    "AssetsCurrent",
+    "AssetsNoncurrent",
+    "Assets",
+    "LiabilitiesCurrent",
+    "LiabilitiesNoncurrent",
+    "Liabilities",
+    "StockholdersEquity",
+    "MinorityInterest",
+    "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    "LiabilitiesAndStockholdersEquity"
+  ))
+  
+  values <- xbrlValues( 
+    CIK = cik$cik, 
+    Element = elements$elementName, 
+    DimReqd = FALSE, 
+    Period = "Y",
+    Year = year,
+    NoYears = 1,
+    Ultimus = TRUE,
+    Small = TRUE,
+    as_data_frame = TRUE
+  )
+  
+  balance_sheet <- 
+    elements %>% 
+    left_join(values, by = "elementName") %>% 
+    select(entity, standard.text, amount) %>% 
+    mutate(amount = round(amount / 10e6,0)) %>%  
+    spread(entity, amount)
+  
+  bal_cols = ncol(balance_sheet)
+  
+  extra_col_count = length(c_vect) + 2
+  
+  if(bal_cols == extra_col_count) {balance_sheet[,bal_cols] <- NULL}
+
+  balance_sheet <- balance_sheet[
+    order(order(elements$elementName)),   
+    !is.na(names(balance_sheet))]
+  row.names(balance_sheet) <- NULL
+  
+  pandoc.table(
+    balance_sheet,
+    caption = "Balance Sheet Comparison",
+    big.mark = ",",
+    split.table = 200,
+    style = "rmarkdown",
+    justify = c("left", rep("right", 3)))
+
+  
+  print(pandoc.table)
+  if(return_data){return(balance_sheet)}
+  
+}
+```
+
+
+
+This function allows me to compare three ticker symbols for any year I want, pretty cool and it was lifted right from the github of the author so it's basically cut and paste!
+
+It also return the balance sheet value if I want to get more data
+
+```{r balance sheet results, results='asis'}
+
+bs <- balanceSheetCompare()
+
+```
+
+## Getting XBRL Ourselves
+
+Next we want to look at parsing entire xbrl files we get from edgar: https://www.sec.gov/edgar/searchedgar/companysearch.html
+
+Again, this is taken right from the github for the library:
+
+
+```{r get full xbrl statement}
+
+getXbrlStatement <- function(url) {
+old_o <- options(stringsAsFactors = FALSE)
+fullStatementXbrl <- xbrlDoAll(url, verbose = TRUE)
+options(old_o)
+
+fullStatementDF <- xbrl_get_statements(fullStatementXbrl)
+}
+
+getBalanceSheet <- function(parsedXBRL){
+  if(!is.null(parsedXBRL$StatementOfFinancialPositionClassified)){
+    balanceSheet <- parsedXBRL$StatementOfFinancialPositionClassified
+  }
+  if(!is.null(parsedXBRL$ConsolidatedBalanceSheets)){
+    balanceSheet <- parsedXBRL$ConsolidatedBalanceSheets
+  }
+  return(balanceSheet)
+}
+
+getIncomeStatement <- function(parsedXBRL){
+  if(!is.null( parsedXBRL$StatementOfIncome)){
+    incomeStatement <- parsedXBRL$StatementOfIncome
+  }
+  if(!is.null( parsedXBRL$ConsolidatedStatementsOfComprehensiveIncome)){
+    incomeStatement <- parsedXBRL$ConsolidatedStatementsOfComprehensiveIncome
+  }
+  return(incomeStatement)
+}
+
+checkBalanceSheet <- function(url = "https://www.sec.gov/Archives/edgar/data/320193/000162828016020309/aapl-20160924.xml") {
+  xbrl <- getXbrlStatement(url)
+  balance_sheet <- getBalanceSheet(xbrl)
+  check(balance_sheet)
+}
+
+checkBalanceSheet()
+
+balance_sheet_ratios <- function(XBRLYear1URL = "https://www.sec.gov/Archives/edgar/data/320193/000119312515356351/aapl-20150926.xml", 
+                                 XBRLYear2URL = "https://www.sec.gov/Archives/edgar/data/320193/000162828016020309/aapl-20160924.xml"){
+  
+  
+  
+  XBRLYear2 <- invisible(getXbrlStatement(XBRLYear2URL))
+  XBRLYear1 <- invisible(getXbrlStatement(XBRLYear1URL))
+  
+  BalanceYear2 <- getBalanceSheet(XBRLYear2)
+  BalanceYear1 <- getBalanceSheet(XBRLYear1)
+  
+  balance_sheet <- merge( BalanceYear1,BalanceYear2 )
+  
+  ratios <- balance_sheet %>% calculate( digits = 2,
+    
+      current_ratio = AssetsCurrent / LiabilitiesCurrent,
+      
+      quick_ratio =  
+        ( CashAndCashEquivalentsAtCarryingValue + 
+            AvailableForSaleSecuritiesCurrent +
+            AccountsReceivableNetCurrent
+          ) / LiabilitiesCurrent
+      
+  )
+  
+  long_df <- invisible(melt(ratios)) #invisible to hide log output
+  
+  ratio_plot <-   ggplot(data = long_df, aes(x=date, y=value, fill = variable)) 
+  
+  ratio_plot <- ratio_plot + geom_bar(stat="identity", position=position_dodge())
+  
+  return(list(ratios,ratio_plot))
+
+}
+
+```
+
+## Financial Analysis
+
+Here's where it get's incredible, using built in calculation functions in the finstr library, we can take multiple years of data and completely automate the analysis!
+
+```{r balance sheet analsysis, results='hide'}
+
+XBRLYear2URL <- "https://www.sec.gov/Archives/edgar/data/320193/000162828016020309/aapl-20160924.xml"
+XBRLYear1URL <- "https://www.sec.gov/Archives/edgar/data/320193/000119312515356351/aapl-20150926.xml"
+
+XBRLYear2 <- invisible(getXbrlStatement(XBRLYear2URL))
+XBRLYear1 <- invisible(getXbrlStatement(XBRLYear1URL))
+
+BalanceYear2 <- getBalanceSheet(XBRLYear2)
+BalanceYear1 <- getBalanceSheet(XBRLYear1)
+
+```
+
+Sweet, we have our statements, now remember how much it work it was to close the books and verify there weren't any errors?
+
+```{r checking error, results = 'asis'}
+
+check <- check_statement(appl2016Balance)
+check
+
+#No Errors!
+
+#Further Exploration
+
+check$elementId[3]
+check$expression[3]
+check$original[3]
+check$calculated[3]
+
+```
+
+
+Well, there goes a few jobs...
+
+Let's get rid of some more shall we!
+
+We can merge the statements together and do whatever analysis we like, even custom calcuations
+
+```{r more analysis}
+
+
+balance_sheet <- merge( appl2015Balance, appl2016Balance )
+
+ratios <- balance_sheet %>% calculate( digits = 2,
+  
+    current_ratio = AssetsCurrent / LiabilitiesCurrent,
+    
+    quick_ratio =  
+      ( CashAndCashEquivalentsAtCarryingValue + 
+          AvailableForSaleSecuritiesCurrent +
+          AccountsReceivableNetCurrent
+        ) / LiabilitiesCurrent
+    
+)
+```
+
+Year over year ratios:
+```{r ratio table, results='asis'}
+ pandoc.table(
+        ratios,
+        caption = "Year Over Year Ratios",
+        big.mark = ",",
+        split.table = 200,
+        style = "rmarkdown",
+        justify = c("left", rep("right", 2)))
+```
+
+
+## Making a plot
+
+And last but not least a quick visual to show some things aren't as easy in R :)
+
+```{r ggplot libraries, results='hide', message=FALSE}
+
+library(ggplot2)
+library(reshape2)
+```
+
+First we have to make our data 'long' for it to work appropriately in ggplot:
+```{r shaping data for plot, message="FALSE", results='asis'}
+long_df <- invisible(melt(ratios)) #invisible to hide log output
+
+pandoc.table(
+  long_df,
+  caption = "Ratios in Long Format",
+  big.mark = ",",
+  split.table = 200,
+  style = "rmarkdown",
+  justify = c("left", rep("right", 2)))
+
+```
+
+Then we have to use the unusual langague of ggplot to make a chart, it looks cool, but the syntax is... less than obvious...
+```{r ggplot}
+ratio_plot <-   ggplot(data = long_df, aes(x=date, y=value, fill = variable)) 
+
+ratio_plot <- ratio_plot + geom_bar(stat="identity", position=position_dodge())
+
+ratio_plot
+```
+
+```{r activate warning, echo=FALSE}
+
+options(warn = oldw)
+```
+  
