@@ -25,7 +25,7 @@ library(reshape2)
 # 
 # fullStatementXbrl <- xbrlDoAll(url, verbose = TRUE, cache.dir = "xbrl.cache", delete.cached.inst = TRUE)
 
-# api_key = "3aa4a7a1-3cb0-4dbb-b346-63219773bfe1"
+# api_key = "xxxxxx"
 # Sys.setenv(XBRLUS_API_KEY=api_key)
 
 balanceSheetCompare <- function(c = "aapl, goog, fb", year =2016){
