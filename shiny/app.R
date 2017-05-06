@@ -1,12 +1,5 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
 
+# Quick script if running in RStudio to get working directory
 # rstudioapi::getActiveDocumentContext()
 # this.dir <- dirname(rstudioapi::getActiveDocumentContext()$path)
 # setwd(this.dir)
