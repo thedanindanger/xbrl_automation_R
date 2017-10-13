@@ -20,7 +20,7 @@ options(warn = -1)
 
 This project is for the automation of XBRL financial analysis, it acts as an example of how easy automation can be just by learning a few key concepts.
 
-We will use the XBRL API to grab financial statements, then use publicly avaialable libraries to QA and analyse the statements
+We will use the XBRL API to grab financial statements, then use publicly available libraries to QA and analyse the statements
 
 ## Installation
 
