@@ -8,7 +8,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r suppress warnings, echo = FALSE}
-#Suppressing Warning so they do not print when knitting
+#Suppressing warnings so they do not print when knitting
 #Do not not run when testing
 oldw <- getOption("warn")
 
@@ -20,7 +20,7 @@ options(warn = -1)
 
 This project is for the automation of XBRL financial analysis, it acts as an example of how easy automation can be just by learning a few key concepts.
 
-We will use the XBRL API to grab financial statemetns, then use publically avaialble libraries to QA and Analysis the Statements
+We will use the XBRL API to grab financial statements, then use publicly available libraries to QA and analyse the statements
 
 ## Installation
 
@@ -270,7 +270,7 @@ pandoc.table(
 
 ```
 
-Then we have to use the unusual langague of ggplot to make a chart, it looks cool, but the syntax is... less than obvious...
+Then we have to use the unusual language of ggplot to make a chart, it looks cool, but the syntax is... less than obvious...
 ```{r ggplot}
 ratio_plot <-   ggplot(data = long_df, aes(x=date, y=value, fill = variable)) 
 
